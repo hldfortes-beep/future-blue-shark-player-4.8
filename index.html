@@ -125,7 +125,7 @@ $('startTraining').onclick=async()=>{
       `;
 
       $('completeExercise').onclick=async()=>{
-        $('completeExercise').disabled=true;
+        $('completeExercise').disabled=false;
 
         try{
           await api('/api/training/result',{
