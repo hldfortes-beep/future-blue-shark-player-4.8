@@ -75,6 +75,7 @@ $('startTraining').onclick=async()=>{
     let current=0;
 
     function renderExercise(){
+      $('startTraining').style.display='none';
       const e=ex[current];
 
       $('trainingExercises').innerHTML=`
