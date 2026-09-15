@@ -826,7 +826,6 @@ app.post('/api/ai/daily-training-library',auth,async(req,res)=>{
      const c=allowed.get(String(x.exerciseId));
      return {...x,name:c.title||c.name,videoUrl:c.video_url||null,videoStatus:c.video_status||'MISSING'};
    });
-   training.exercises=training.exercises.filter(x=>x.videoStatus==='PUBLISHED' && x.videoUrl);
    await saveAIDecision(req.user.sub,'DAILY_TRAINING_LIBRARY_GUARD',input,training,result.model);
    res.json({provider:'openai',model:result.model,training,usage:result.usage});
  }catch(e){console.error(e);res.status(502).json({error:'ai_unavailable',message:'Library-constrained training unavailable'});}
