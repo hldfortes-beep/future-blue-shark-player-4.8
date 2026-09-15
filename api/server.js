@@ -20,7 +20,20 @@ async function openAIResponses(input, options={}){
   const text=await response.text();
   if(!response.ok) throw new Error(`OpenAI API ${response.status}: ${text.slice(0,500)}`);
   const data=JSON.parse(text);
-  return {id:data.id,model:data.model,text:data.output_text||'',usage:data.usage||null};
+
+const outputText=(data.output||[])
+  .flatMap(item=>item.content||[])
+  .filter(item=>item.type==='output_text')
+  .map(item=>item.text||'')
+  .join('');
+
+return {
+  id:data.id,
+  model:data.model,
+  text:outputText,
+  usage:data.usage||null
+};
+  
 }
 
 const app=express();
