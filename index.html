@@ -184,4 +184,28 @@ $('startTraining').onclick=async()=>{
     $('startTraining').disabled=false;
   }
 };
-  
+$('coachBtn').onclick=async()=>{
+  $('coachMsg').textContent='A preparar o AI Coach...';
+  try{
+    const d=await api('/api/ai/coach',{
+      method:'POST',
+      body:JSON.stringify({
+        message:'Analisa o meu próximo passo de treino.'
+      })
+    });
+    $('coachMsg').textContent=d.reply||d.message||'AI Coach pronto.';
+  }catch(e){
+    $('coachMsg').textContent=e.message||'Não foi possível contactar o AI Coach.';
+  }
+};
+
+setAuthMode();
+
+if(token) loadApp();
+
+if('serviceWorker' in navigator){
+  navigator.serviceWorker.register('/sw.js').catch(()=>{});
+  }
+</script>
+</body>
+</html>
