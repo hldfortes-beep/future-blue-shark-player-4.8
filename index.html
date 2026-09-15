@@ -54,23 +54,134 @@ $('authBtn').onclick=async()=>{const email=$('email').value.trim(),password=$('p
 $('logout').onclick=()=>{token=null;localStorage.removeItem('fbs_token');$('app').classList.add('hidden');$('auth').classList.remove('hidden');$('logout').classList.add('hidden');setAuthMode()};
 async function loadApp(){try{const c=await api('/api/player/context');if(!c?.identity)throw new Error('Sessão inválida');$('auth').classList.add('hidden');$('install').classList.add('hidden');$('app').classList.remove('hidden');$('logout').classList.remove('hidden');const a=c.assessment;if(a){$('profileSummary').textContent=`${a.age||'—'} anos · ${a.position||'—'} · ${a.level||'—'} · objetivo: ${a.goal||'—'}`;$('pills').innerHTML=(Object.entries(a.scores||{}).slice(0,6).map(([k,v])=>`<span class="pill">${k}: ${v}</span>`).join('')||'<span class="muted">Ainda não existem resultados de avaliação.</span>')}else $('profileSummary').textContent='Completa o teu perfil para começar.';const sessions=c.recentTraining||[];$('xp').textContent=(sessions.length*100).toLocaleString('pt-PT');$('evolution').textContent=sessions.length?'+8%':'—';$('coachText').textContent=a?`O teu objetivo atual é ${a.goal||'evoluir'}. Vou usar o teu histórico para orientar o próximo treino.`:'Completa o perfil para eu preparar o teu plano.';try{const d=await api('/api/ai/player-next-action-db',{method:'POST',body:'{}'});if(d?.analysis?.summary)$('coachText').textContent=d.analysis.summary}catch{} }catch(e){token=null;localStorage.removeItem('fbs_token');$('app').classList.add('hidden');$('auth').classList.remove('hidden');msg($('authMsg'),'Entra novamente para continuar.','error')}}
 $('startTraining').onclick=async()=>{
- msg($('appMsg'),'');$('startTraining').classList.add('loading');
- try{
-   const d=await api('/api/ai/daily-training-smart',{method:'POST',body:JSON.stringify({})});
-   const t=d.training||{};
-   $('training').textContent=t.title||'Treino personalizado';
-   $('trainingDesc').textContent=`${t.durationMinutes||45} min · ${t.focus||'desenvolvimento'} · intensidade ${t.intensity||'moderada'}`;
-   const ex=t.exercises||[];
-   $('trainingExercises').innerHTML=ex.length
-     ? `<b>Exercícios:</b><ol>${ex.map(x=>`<li>${String(x.name||x.exerciseId).replace(/</g,'&lt;')}${x.videoUrl?' 🎥':' — vídeo em preparação'}</li>`).join('')}</ol>`
-     : '';
-   msg($('appMsg'),'Treino inteligente preparado a partir da tua biblioteca e do teu histórico.','ok');
- }catch(e){
-   msg($('appMsg'),`Não foi possível gerar o treino: ${String(e.message||'erro').replace(/</g,'&lt;')}`);
- }finally{$('startTraining').classList.remove('loading')}
+  msg($('appMsg'),'');
+  $('startTraining').disabled=true;
+
+  try{
+    const d=await api('/api/ai/daily-training-library',{method:'POST'});
+    const t=d.training||{};
+    const ex=t.exercises||[];
+
+    if(!ex.length){
+      throw new Error('Nenhum exercício disponível para este treino.');
+    }
+
+    $('training').textContent=t.title||'Treino diário';
+    $('trainingDesc').textContent=
+      t.duration_minutes
+      ? `Duração prevista: ${t.duration_minutes} minutos`
+      : 'Treino personalizado';
+
+    let current=0;
+
+    function renderExercise(){
+      const e=ex[current];
+
+      $('trainingExercises').innerHTML=`
+        <div style="margin-top:16px;padding:18px;border:1px solid #234;border-radius:16px">
+          <div class="muted">
+            EXERCÍCIO ${current+1} DE ${ex.length}
+          </div>
+
+          <h3 style="margin:8px 0">
+            ${e.title||e.name||'Exercício'}
+          </h3>
+
+          <p>
+            ${e.description||e.objective||'Execute o exercício conforme as instruções.'}
+          </p>
+
+          <div style="margin:12px 0">
+            <b>Séries:</b> ${e.sets||'-'}
+            &nbsp;&nbsp;
+            <b>Repetições:</b> ${e.reps||'-'}
+          </div>
+
+          ${e.duration_seconds
+            ? `<div><b>Duração:</b> ${e.duration_seconds} segundos</div>`
+            : ''}
+
+          ${e.video_url
+            ? `<div style="margin-top:16px">
+                <video
+                  src="${e.video_url}"
+                  controls
+                  playsinline
+                  style="width:100%;max-height:360px;border-radius:12px">
+                </video>
+              </div>`
+            : `<div class="muted" style="margin-top:16px">
+                Vídeo deste exercício ainda não disponível.
+              </div>`}
+
+          <button
+            id="completeExercise"
+            class="primary"
+            style="margin-top:18px;width:100%">
+            ${current < ex.length-1 ? 'CONCLUIR E PRÓXIMO' : 'CONCLUIR TREINO'}
+          </button>
+        </div>
+      `;
+
+      $('completeExercise').onclick=async()=>{
+        $('completeExercise').disabled=true;
+
+        try{
+          await api('/api/training/result',{
+            method:'POST',
+            body:JSON.stringify({
+              exercise_id:e.id,
+              completed:true,
+              sets_completed:e.sets||0,
+              reps_completed:e.reps||0
+            })
+          });
+        }catch(err){
+          console.warn('Resultado não registado:',err);
+        }
+
+        if(current < ex.length-1){
+          current++;
+          renderExercise();
+        }else{
+          $('trainingExercises').innerHTML=`
+            <div style="margin-top:18px;padding:22px;border:1px solid #234;border-radius:16px;text-align:center">
+              <h2>🏆 Treino concluído!</h2>
+              <p>Excelente trabalho. O teu resultado foi registado.</p>
+
+              <button
+                id="finishTraining"
+                class="primary"
+                style="width:100%;margin-top:12px">
+                TERMINAR
+              </button>
+            </div>
+          `;
+
+          $('finishTraining').onclick=()=>{
+            msg($('appMsg'),'Treino concluído e registado.','ok');
+          };
+        }
+      };
+    }
+
+    renderExercise();
+
+    msg(
+      $('appMsg'),
+      `Treino iniciado — ${ex.length} exercícios.`,
+      'ok'
+    );
+
+  }catch(e){
+    console.error(e);
+    msg(
+      $('appMsg'),
+      e.message||'Não foi possível iniciar o treino.',
+      'error'
+    );
+  }finally{
+    $('startTraining').disabled=false;
+  }
 };
-$('coachBtn').onclick=async()=>{ $('coachBtn').classList.add('loading');try{const d=await api('/api/ai/coach',{method:'POST',body:JSON.stringify({message:'Analisa o meu momento atual e diz-me qual deve ser o próximo foco.'})});$('coachReply').innerHTML=`<div class="ok">${String(d.text||d.message||'Análise concluída.').replace(/</g,'&lt;')}</div>`}catch(e){msg($('coachReply'),'O AI Coach ficará disponível assim que a chave da IA estiver configurada no servidor.')}finally{$('coachBtn').classList.remove('loading')}};
-setAuthMode();if(token)loadApp();
-if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{});
-</script>
-</body></html>
+  
