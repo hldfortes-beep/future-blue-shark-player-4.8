@@ -1,0 +1,36 @@
+CREATE TABLE IF NOT EXISTS staging_runs(
+ id BIGSERIAL PRIMARY KEY,
+ run_key TEXT NOT NULL,
+ status TEXT NOT NULL,
+ started_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+ finished_at TIMESTAMPTZ,
+ result JSONB
+);
+CREATE TABLE IF NOT EXISTS notification_jobs(
+ id BIGSERIAL PRIMARY KEY,
+ user_id BIGINT,
+ provider TEXT NOT NULL DEFAULT 'stub',
+ payload JSONB NOT NULL,
+ status TEXT NOT NULL DEFAULT 'QUEUED',
+ created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+ sent_at TIMESTAMPTZ
+);
+CREATE TABLE IF NOT EXISTS video_assets(
+ id BIGSERIAL PRIMARY KEY,
+ exercise_id BIGINT,
+ storage_key TEXT NOT NULL,
+ mime_type TEXT NOT NULL,
+ status TEXT NOT NULL DEFAULT 'STAGED',
+ created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE TABLE IF NOT EXISTS billing_entitlements(
+ id BIGSERIAL PRIMARY KEY,
+ user_id BIGINT,
+ provider TEXT NOT NULL,
+ external_id TEXT,
+ product_id TEXT,
+ status TEXT NOT NULL,
+ expires_at TIMESTAMPTZ,
+ raw_event JSONB,
+ updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
